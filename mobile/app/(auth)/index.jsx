@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Image,TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Image,TouchableOpacity, ActivityIndicator, KeyboardAvoidingView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "../../assets/styles/login.styles";
 import COLORS from "../../constants/Colors";
 import { Link } from "expo-router";
+import { Platform } from "react-native";
+
 
 
 export default function Login() {
@@ -12,14 +14,19 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {};
+  const handleLogin = () => {
+    
+  };
 
   return (
+    <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}>
     <View style={styles.container}>
       {/* Illustration */}
       <View style={styles.topIllustration}>
         <Image
-          source={require("../../assets/images/Bookshop.png")}
+          source={require("../../assets/images/travel.png")}
           style={styles.illustrationImage}
           resizeMode="contain"
         />
@@ -101,5 +108,6 @@ export default function Login() {
         </View>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
