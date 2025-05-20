@@ -7,6 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
@@ -14,6 +16,9 @@ import styles from "../../assets/styles/create.styles";
 import COLORS from "../../constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import { useAuthStore } from "../../store/authStore";
+import { API_URL } from "../../constants/api";
 
 export default function Create() {
   //use states logic
@@ -23,8 +28,10 @@ export default function Create() {
   const [image, setImage] = useState(null);
   const [ImageBase64, setImageBase64] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+  const{token}=useAuthStore();
   const pickImage = async () => {
     try {
       //request permission to access the image library
@@ -44,14 +51,69 @@ export default function Create() {
         base64:true,
       });
       if(!result.canceled){
-        console.log("result is here",result);
         setImage(result.assets[0].uri);
+        if(result.assets[0].base64){
+          setImageBase64(result.assets[0].base64);
+        }else{
+          const base64=await FileSystem.readAsStringAsync(result.assets[0].uri,{
+            encoding:FileSystem.EncodingType.Base64,
+          });
+          setImageBase64(base64);
+        }
       }
     } catch (error) {
+      console.log("Error picking image: ", error);
+      alert("Error picking image");
       
     }
   };
-  const handleSubmit = async () => {}; 
+  const handleSubmit = async () => {
+    if(!title || !caption || !ImageBase64 || !rating){
+      alert("Please fill all the fields");
+      return;
+
+    }
+    try {
+      setLoading(true);
+      const uriParts=image.split(".");
+      const fileType=uriParts[uriParts.length-1];
+      const imageType=fileType? `image/${fileType.toLowerCase()}`: "image/jpeg";
+      const imageDataUrl=`data:${imageType};base64,${ImageBase64}`;
+      const response=await fetch(`${API_URL}/destinations`,{
+        method:"POST",
+        headers:{
+          authorization:`Bearer ${token}`,
+          "Content-Type":"application/json",
+        },
+        body:JSON.stringify({
+          title,
+          caption,
+          rating:rating.toString(),
+          image:imageDataUrl,
+        }),
+    })
+    const data =await response.json();
+    if(!response.ok) throw new Error(data.message || "Something went wrong");
+    Alert.alert("Success", "Destination added successfully");
+
+    setTitle("");
+    setCaption("");
+    setRating(3);
+    setImage(null);
+    setImageBase64(null);
+    
+    router.push("/");
+
+    } catch (error) {
+      console.log("Error submitting form: ", error);
+      Alert.alert("Error", error.message || "Something went wrong");
+      
+    }finally{
+      setLoading(false);
+    }
+  };
+  
+  
   const renderRatingPicker=()=>{
     const stars=[];
     for(let i=1;i<=5;i++){
@@ -130,6 +192,39 @@ export default function Create() {
 
             </TouchableOpacity>
           </View>
+          {/*caption*/}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Caption</Text>
+            <TextInput
+              placeholder="Write a caption about your experience"
+              placeholderTextColor={COLORS.textSecondary}
+              style={styles.textArea}
+              value={caption}
+              onChange={setCaption}
+              multiline
+            />
+          </View>
+          {/*submit button*/}
+          <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={COLORS.white}/>
+            ) : (
+              <>
+              <Ionicons
+                name="cloud-upload-outline"
+                size={20}
+                color={COLORS.white}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.buttonText}>Share</Text>
+              </>
+            )
+            }
+
+
+          </TouchableOpacity>
+          
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

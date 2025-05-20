@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import {API_URL}from "../constants/api";
 // Use your machine's IP address instead of localhost
 //const API_URL = "http://10.0.2.2:3000"; // For Android emulator
 // const API_URL = "http://localhost:3000"; // Original - doesn't work on mobile devices
@@ -16,7 +17,7 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await fetch(
         //i need to change this to localhost when using the emulator
-        `https://book-store-vheh.onrender.com/api/auth/register`,
+        `${API_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
@@ -80,7 +81,7 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true });
     try {
       const response = await fetch(
-        `https://book-store-vheh.onrender.com/api/auth/login`,
+        `${API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {

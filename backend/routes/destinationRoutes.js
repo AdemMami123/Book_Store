@@ -1,12 +1,12 @@
 import express from "express";
 import cloudinary from "cloudinary";
-import Book from "../models/book.js";
+import Destination from "../models/destination.js";
 import protectRoute from "../middleware/auth.js";
 
 
 const router = express.Router();
 
-//create a book
+//create a Destination
 router.post("/", protectRoute, async (req, res) => {
   try {
     const { title, caption, rating, image } = req.body;
@@ -16,48 +16,48 @@ router.post("/", protectRoute, async (req, res) => {
     //upload  the image to cloudinary
     const uploadResponse = await cloudinary.UploadStream.upload(image);
     const imageUrl = uploadResponse.secure_url;
-    //save the book to the database
-    const book = new Book({
+    //save the Destination to the database
+    const Destination = new Destination({
       title,
       caption,
       rating,
       image: imageUrl,
       user: req.user._id,
     });
-    await book.save();
-    res.status(201).json({ message: "Book created successfully" });
+    await Destination.save();
+    res.status(201).json({ message: "Destination created successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
-//delete a book
+//delete a Destination
 router.delete("/:id", protectRoute, async (req, res) => {
     try {
-        const book=await Book.findById(req.params.id);
-        if (!book) {
-            return res.status(404).json({ message: "Book not found" });
+        const Destination=await Destination.findById(req.params.id);
+        if (!Destination) {
+            return res.status(404).json({ message: "Destination not found" });
         }
-        //check if the user is the owner of the book
-        if (book.user.toString() !== req.user._id.toString()) {
-            return res.status(401).json({ message: "You are not authorized to delete this book" });
+        //check if the user is the owner of the Destination
+        if (Destination.user.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: "You are not authorized to delete this Destination" });
         }
         //delete image from cloudinary
-        if(book.image && book.image.includes(cloudinary)){
+        if(Destination.image && Destination.image.includes(cloudinary)){
             try {
-                const publicId = book.image.split("/").pop().split(".")[0];
+                const publicId = Destination.image.split("/").pop().split(".")[0];
                 await cloudinary.v2.uploader.destroy(publicId);
-                //delete the book from the database
-                await book.remove();
-                res.status(200).json({ message: "Book deleted successfully" }); 
+                //delete the Destination from the database
+                await Destination.remove();
+                res.status(200).json({ message: "Destination deleted successfully" }); 
                 
             } catch (error) {
                 console.log("Error deleting image from cloudinary", error);
             }
 
         }
-        await book.deleteOne();
-        res.status(200).json({ message: "Book deleted successfully" });
+        await Destination.deleteOne();
+        res.status(200).json({ message: "Destination deleted successfully" });
 
     } catch (error) {
         console.log(error);
@@ -65,36 +65,36 @@ router.delete("/:id", protectRoute, async (req, res) => {
     }
     });
 
-//update a book
+//update a Destination
 
 
-//get all books
+//get all Destinations
 router.get("/", protectRoute, async (req, res) => {
   try {
     const page = req.query.page || 1;
     const limit = req.query.limit || 5;
     const skip = (page - 1) * limit;
-    const books = await Book.find()
+    const Destinations = await Destination.find()
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate("user", "username", "profileI  mage");
-    const totalBooks = await Book.countDocuments();
+    const totalDestinations = await Destination.countDocuments();
     res.send({
-      books,
+      Destinations,
       currentPage: page,
-      totalbooks: Math.ceil(totalBooks / limit),
+      totalDestinations: Math.ceil(totalDestinations / limit),
     });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
-//get recommended books
+//get recommended Destinations
 router.get("/user",protectRoute, async (req, res) => {
     try {
-        const books=await Book.find({user:req.user._id}).sort({createdAt:-1});
-        res.json(books);
+        const Destinations=await Destination.find({user:req.user._id}).sort({createdAt:-1});
+        res.json(Destinations);
 
          
     } catch (error) {

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-const bookSchema = new mongoose.Schema({
+const DestinationSchema = new mongoose.Schema({
     title: {
         type: String,
         required: true,
@@ -30,5 +30,5 @@ const bookSchema = new mongoose.Schema({
 }
 
  )
-const Book = mongoose.model('Book', bookSchema);
-export default Book;
+const Destination = mongoose.model('Destination', DestinationSchema);
+export default Destination;
