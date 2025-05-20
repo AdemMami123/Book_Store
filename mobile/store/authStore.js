@@ -50,9 +50,18 @@ export const useAuthStore = create((set) => ({
       const token = await AsyncStorage.getItem("token");
       const userJson = await AsyncStorage.getItem("user");
       const user = userJson ? JSON.parse(userJson) : null;
-      set({ user, token });
+      
+      // Only set as authenticated if both token and user exist
+      if (token && user) {
+        console.log("Auth check: User is authenticated");
+        set({ user, token });
+      } else {
+        console.log("Auth check: User is NOT authenticated");
+        set({ user: null, token: null });
+      }
     } catch (error) {
       console.log("Error checking auth:", error);
+      set({ user: null, token: null });
     }
   },
   //logout
@@ -97,6 +106,6 @@ export const useAuthStore = create((set) => ({
         success: false,
         message: error.message || "Login failed"
       };
-    }
+    } 
   },
 }));
