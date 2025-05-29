@@ -15,8 +15,10 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true });
 
     try {
+      console.log("Registering user:", email);
+      console.log("API URL:", `${API_URL}/api/auth/register`);
+
       const response = await fetch(
-        //i need to change this to localhost when using the emulator
         `${API_URL}/api/auth/register`,
         {
           method: "POST",
@@ -27,14 +29,33 @@ export const useAuthStore = create((set) => ({
         }
       );
 
-      const data = await response.json();
+      // First get the raw text response for debugging
+      const responseText = await response.text();
+      console.log("Register response:", responseText);
+      
+      // Try to parse it as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parsing register response as JSON:", parseError);
+        throw new Error("Invalid response from server");
+      }
 
-      if (!response.ok) throw new Error(data.message || "Something went wrong");
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      if (!data.token) {
+        console.error("No token returned from registration");
+        throw new Error("Authentication failed: No token received");
+      }
 
       await AsyncStorage.setItem("user", JSON.stringify(data));
       await AsyncStorage.setItem("token", data.token);
 
       set({ user: data, token: data.token, isLoading: false });
+      console.log("Registration successful:", data);
 
       return { success: true };
     } catch (error) {
@@ -42,7 +63,7 @@ export const useAuthStore = create((set) => ({
       set({ isLoading: false });
       return {
         success: false,
-        message: error.message || "Network request failed",
+        message: error.message || "Registration failed",
       };
     }
   },
@@ -52,20 +73,25 @@ export const useAuthStore = create((set) => ({
       const userJson = await AsyncStorage.getItem("user");
       const user = userJson ? JSON.parse(userJson) : null;
       
+      console.log("Auth check - Token:", token ? token.substring(0, 20) + "..." : "No token");
+      console.log("Auth check - User:", user ? `ID: ${user._id}` : "No user");
+      
       // Only set as authenticated if both token and user exist
       if (token && user) {
         console.log("Auth check: User is authenticated");
         set({ user, token });
+        return { isAuthenticated: true, user, token };
       } else {
         console.log("Auth check: User is NOT authenticated");
         set({ user: null, token: null });
+        return { isAuthenticated: false };
       }
     } catch (error) {
       console.log("Error checking auth:", error);
       set({ user: null, token: null });
+      return { isAuthenticated: false, error };
     }
-  },
-  //logout
+  },  //logout
   logout: async () => {
     try {
       await AsyncStorage.removeItem("user");
@@ -80,6 +106,9 @@ export const useAuthStore = create((set) => ({
   login: async (email, password) => {
     set({ isLoading: true });
     try {
+      console.log("Logging in user:", email);
+      console.log("API URL:", `${API_URL}/api/auth/login`);
+      
       const response = await fetch(
         `${API_URL}/api/auth/login`,
         {
@@ -90,10 +119,32 @@ export const useAuthStore = create((set) => ({
           body: JSON.stringify({ email, password }),
         }
       );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Something went wrong");
       
-      // Fix: The API returns user data directly in response, not nested in a user property
+      // First get the raw text response for debugging
+      const responseText = await response.text();
+      console.log("Login response:", responseText);
+      
+      // Try to parse it as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parsing login response as JSON:", parseError);
+        throw new Error("Invalid response from server");
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+      
+      if (!data.token) {
+        console.error("No token returned from login");
+        throw new Error("Authentication failed: No token received");
+      }
+      
+      console.log("Token received:", data.token.substring(0, 20) + "...");
+      
+      // Store data in AsyncStorage
       await AsyncStorage.setItem("user", JSON.stringify(data));
       await AsyncStorage.setItem("token", data.token);
       

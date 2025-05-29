@@ -19,6 +19,9 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { useAuthStore } from "../../store/authStore";
 import { API_URL } from "../../constants/api";
+import { Snackbar } from 'react-native-paper';
+
+
 
 export default function Create() {
   //use states logic
@@ -30,8 +33,17 @@ export default function Create() {
   const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
-  const{token}=useAuthStore();
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+
+  const router = useRouter();  const {token, user} = useAuthStore();
+  
+  React.useEffect(() => {
+    console.log("Current token:", token ? token.substring(0, 20) + "..." : "No token");
+    console.log("Current user:", user ? `ID: ${user._id}` : "No user");
+  }, [token, user]);
+  
   const pickImage = async () => {
     try {
       //request permission to access the image library
@@ -66,49 +78,99 @@ export default function Create() {
       alert("Error picking image");
       
     }
-  };
-  const handleSubmit = async () => {
+  };  const handleSubmit = async () => {
     if(!title || !caption || !ImageBase64 || !rating){
       alert("Please fill all the fields");
       return;
-
     }
     try {
       setLoading(true);
-      const uriParts=image.split(".");
-      const fileType=uriParts[uriParts.length-1];
-      const imageType=fileType? `image/${fileType.toLowerCase()}`: "image/jpeg";
-      const imageDataUrl=`data:${imageType};base64,${ImageBase64}`;
-      const response=await fetch(`${API_URL}/destinations`,{
-        method:"POST",
-        headers:{
-          authorization:`Bearer ${token}`,
-          "Content-Type":"application/json",
+      const uriParts = image.split(".");
+      const fileType = uriParts[uriParts.length-1];
+      const imageType = fileType ? `image/${fileType.toLowerCase()}` : "image/jpeg";
+      const imageDataUrl = `data:${imageType};base64,${ImageBase64}`;
+      
+      console.log("API URL:", `${API_URL}/api/destinations`);
+      console.log("Token present:", !!token);
+      
+      // Double check token to ensure it's a valid string
+      if (!token || typeof token !== 'string' || token.trim() === '') {
+        // If token is missing, redirect to login
+        Alert.alert(
+          "Session Expired",
+          "Your login session has expired. Please log in again.",
+          [
+            { text: "OK", onPress: () => router.replace("/(auth)") }
+          ]
+        );
+        return;
+      }
+      
+      console.log("Using token:", token.substring(0, 20) + "...");
+      
+      const response = await fetch(`${API_URL}/api/destinations`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body:JSON.stringify({
+        body: JSON.stringify({
           title,
           caption,
-          rating:rating.toString(),
-          image:imageDataUrl,
+          rating: rating.toString(),
+          image: imageDataUrl,
         }),
-    })
-    const data =await response.json();
-    if(!response.ok) throw new Error(data.message || "Something went wrong");
-    Alert.alert("Success", "Destination added successfully");
+      });
+      
+      console.log("Response status:", response.status);
+      
+      // Try to get the text response first
+      const responseText = await response.text();
+      console.log("Response text:", responseText);
+      
+      // Then parse it as JSON if possible
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parsing JSON:", parseError);
+        throw new Error("Invalid response from server: " + responseText.substring(0, 100));
+      }
+      
+      if(!response.ok) throw new Error(data.message || "Something went wrong");
+    setSnackbarMessage("Destination added successfully");
+  setSnackbarVisible(true);
 
     setTitle("");
     setCaption("");
     setRating(3);
     setImage(null);
     setImageBase64(null);
-    
+
+    setTimeout(() => {
     router.push("/");
+    }, 5000);
+   
 
     } catch (error) {
       console.log("Error submitting form: ", error);
-      Alert.alert("Error", error.message || "Something went wrong");
       
-    }finally{
+      // Check if this is an auth error
+      if (error.message === 'Not authorized, no user found' || 
+          error.message === 'Not authorized, token failed' ||
+          error.message.includes('Not authorized')) {
+        Alert.alert(
+          "Authentication Error",
+          "Your session has expired. Please log in again.",
+          [
+            { text: "OK", onPress: () => router.replace("/(auth)") }
+          ]
+        );
+      } else {
+        Alert.alert("Error", error.message || "Something went wrong");
+      }
+      
+    } finally {
       setLoading(false);
     }
   };
@@ -164,7 +226,7 @@ export default function Create() {
                 placeholderTextColor={COLORS.textSecondary}
                 style={styles.input}
                 value={title}
-                onChange={setTitle}
+                onChangeText={setTitle}
               />
             </View>
           </View>
@@ -200,7 +262,7 @@ export default function Create() {
               placeholderTextColor={COLORS.textSecondary}
               style={styles.textArea}
               value={caption}
-              onChange={setCaption}
+              onChangeText={setCaption}
               multiline
             />
           </View>
@@ -227,6 +289,16 @@ export default function Create() {
 
         </View>
       </ScrollView>
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={5000} // Duration in milliseconds
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}>
+        {snackbarMessage}
+      </Snackbar>
     </KeyboardAvoidingView>
   );
 }

@@ -7,13 +7,15 @@ import { connectDB } from "../lib/db.js";
 import cors from "cors";
 import job from "../lib/cron.js";
 
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
 app.use(cors());
-job.start(); // Start the cron job
+job.start(); 
 
 //routes
 app.use("/api/auth", authRoutes);

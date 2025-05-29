@@ -1,5 +1,5 @@
 import express from "express";
-import cloudinary from "cloudinary";
+import cloudinary from "../lib/cloudinary.js";
 import Destination from "../models/destination.js";
 import protectRoute from "../middleware/auth.js";
 
@@ -14,17 +14,15 @@ router.post("/", protectRoute, async (req, res) => {
       return res.status(400).json({ message: "Please fill all the fields" });
     }
     //upload  the image to cloudinary
-    const uploadResponse = await cloudinary.UploadStream.upload(image);
-    const imageUrl = uploadResponse.secure_url;
-    //save the Destination to the database
-    const Destination = new Destination({
+    const uploadResponse = await cloudinary.uploader.upload(image); // Fix: Use uploader.upload
+    const imageUrl = uploadResponse.secure_url;    //save the Destination to the database
+    const newDestination = new Destination({
       title,
       caption,
       rating,
       image: imageUrl,
       user: req.user._id,
-    });
-    await Destination.save();
+    });    await newDestination.save();
     res.status(201).json({ message: "Destination created successfully" });
   } catch (error) {
     console.log(error);
@@ -34,30 +32,28 @@ router.post("/", protectRoute, async (req, res) => {
 //delete a Destination
 router.delete("/:id", protectRoute, async (req, res) => {
     try {
-        const Destination=await Destination.findById(req.params.id);
-        if (!Destination) {
+        const destination = await Destination.findById(req.params.id);        if (!destination) {
             return res.status(404).json({ message: "Destination not found" });
         }
         //check if the user is the owner of the Destination
-        if (Destination.user.toString() !== req.user._id.toString()) {
+        if (destination.user.toString() !== req.user._id.toString()) {
             return res.status(401).json({ message: "You are not authorized to delete this Destination" });
-        }
-        //delete image from cloudinary
-        if(Destination.image && Destination.image.includes(cloudinary)){
+        }        //delete image from cloudinary
+        if(destination.image && destination.image.includes('cloudinary')){
             try {
-                const publicId = Destination.image.split("/").pop().split(".")[0];
+                const publicId = destination.image.split("/").pop().split(".")[0];
                 await cloudinary.v2.uploader.destroy(publicId);
                 //delete the Destination from the database
-                await Destination.remove();
+                await destination.deleteOne();
                 res.status(200).json({ message: "Destination deleted successfully" }); 
                 
             } catch (error) {
-                console.log("Error deleting image from cloudinary", error);
-            }
+                console.log("Error deleting image from cloudinary", error);        }
 
+        } else {
+            await destination.deleteOne();
+            res.status(200).json({ message: "Destination deleted successfully" });
         }
-        await Destination.deleteOne();
-        res.status(200).json({ message: "Destination deleted successfully" });
 
     } catch (error) {
         console.log(error);
@@ -76,9 +72,8 @@ router.get("/", protectRoute, async (req, res) => {
     const skip = (page - 1) * limit;
     const Destinations = await Destination.find()
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("user", "username", "profileI  mage");
+      .skip(skip)      .limit(limit)
+      .populate("user", "username profilePicture");
     const totalDestinations = await Destination.countDocuments();
     res.send({
       Destinations,
